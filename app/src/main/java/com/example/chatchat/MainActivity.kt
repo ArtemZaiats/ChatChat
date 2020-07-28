@@ -1,8 +1,13 @@
 package com.example.chatchat
 
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
@@ -24,31 +29,43 @@ class MainActivity : AppCompatActivity() {
     private val RC_SIGN_IN: Int = 100
     private val RC_GET_IMAGE: Int = 101
 
+    private lateinit var editor: SharedPreferences.Editor
     private lateinit var auth: FirebaseAuth
     private lateinit var etTextOfMessage: EditText
     private lateinit var sendButton: ImageButton
     private lateinit var attachFileButton: ImageButton
     private lateinit var myAdapter: MessageAdapter
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_items, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.itemSignOut) {
+            auth.signOut()
+            signOut()
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val sharedPreferences  = getSharedPreferences("username_preferences", Context.MODE_PRIVATE)
+        editor = sharedPreferences.edit()
         etTextOfMessage = findViewById(R.id.etTextOfMessage)
         sendButton = findViewById(R.id.sendButton)
         attachFileButton = findViewById(R.id.attachFileButton)
         auth = Firebase.auth
+
         if (auth.currentUser != null) {
             sendButton.setOnClickListener {
-                sendMessage("anonim", etTextOfMessage.text.toString().trim())
+                sendMessage(sharedPreferences.getString("currentUser", "Anonim").toString(), etTextOfMessage.text.toString().trim())
             }
         } else {
             signOut()
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        val currentUser = auth.currentUser
     }
 
     override fun onResume() {
@@ -76,10 +93,6 @@ class MainActivity : AppCompatActivity() {
                     etTextOfMessage.setText("")
                     myAdapter.notifyDataSetChanged()
                     recyclerViewMessageList.scrollToPosition(myAdapter.itemCount - 1)
-//                    Toast.makeText(
-//                        this, "DocumentSnapshot added with ID: ${documentReference.id}",
-//                        Toast.LENGTH_SHORT
-//                    ).show()
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(
@@ -98,6 +111,13 @@ class MainActivity : AppCompatActivity() {
 
         if (requestCode == RC_SIGN_IN) {
             val response = IdpResponse.fromResultIntent(data)
+
+            if (requestCode == Activity.RESULT_OK) {
+                var user = auth.currentUser
+                if (user != null) {
+                    editor.putString("currentUser", auth.currentUser!!.displayName.toString()).apply()
+                }
+            }
         }
     }
 
